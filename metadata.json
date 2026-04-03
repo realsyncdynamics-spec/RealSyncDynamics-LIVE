@@ -1,0 +1,5 @@
+{
+  "name": "CreatorSeal | RealSyncDynamics",
+  "description": "CreatorSeal ist eine KI-gestützte Verifikations-Engine für Creator-Content. Die App nimmt Metadaten zu einem Medienobjekt (Video, Bild oder Audio) entgegen, kombiniert sie mit kryptografischen Prüfungen (z.B. Signatur-Status, Hash-Chain-Integrität, Blockchain-Timestamp) und berechnet daraus einen menschlich lesbaren Trust-Report.",
+  "requestFramePermissions": ["camera", "microphone"]
+}

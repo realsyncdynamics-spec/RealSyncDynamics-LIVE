@@ -1,0 +1,367 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // ===============================================================
+    // Helper Functions
+    // ===============================================================
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+    
+    function isAdmin() {
+      return isAuthenticated() && 
+        ((request.auth.token.email == "realsyncdynamics@gmail.com" && request.auth.token.email_verified == true) ||
+         (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
+          get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin'));
+    }
+
+    function isValidUser(data) {
+      return data.keys().hasAll(['uid', 'name', 'email', 'role', 'createdAt']) &&
+             data.uid is string &&
+             data.name is string && data.name.size() > 0 && data.name.size() < 100 &&
+             data.email is string && data.email.size() < 255 &&
+             data.role in ['creator', 'brand', 'admin'] &&
+             (!('handle' in data) || (data.handle is string && data.handle.size() < 50)) &&
+             (!('avatar' in data) || (data.avatar is string && data.avatar.size() < 1000)) &&
+             (!('plan' in data) || data.plan in ['gratis', 'bronze', 'silver', 'gold', 'platinum', 'diamond']) &&
+             (!('balance' in data) || data.balance is number) &&
+             (!('category' in data) || (data.category is string && data.category.size() < 100)) &&
+             (!('price' in data) || (data.price is string && data.price.size() < 50)) &&
+             (!('bio' in data) || (data.bio is string && data.bio.size() < 2000)) &&
+             (!('demographics' in data) || data.demographics is map) &&
+             (!('verificationLevel' in data) || data.verificationLevel in ['none', 'id', 'professional', 'enterprise', 'basic', 'artist', 'label', 'agency', 'admin']) &&
+             (!('stripeCustomerId' in data) || (data.stripeCustomerId is string && data.stripeCustomerId.size() < 100)) &&
+             (!('stripeSubscriptionId' in data) || (data.stripeSubscriptionId is string && data.stripeSubscriptionId.size() < 100)) &&
+             data.createdAt is timestamp;
+    }
+
+    function balanceUnchanged() {
+      return !('balance' in request.resource.data) || 
+             (resource != null && 'balance' in resource.data && request.resource.data.balance == resource.data.balance) ||
+             (resource == null && request.resource.data.balance == 0);
+    }
+
+    function isBalanceDeduction() {
+      return isAuthenticated() && 
+             resource != null && 
+             'balance' in resource.data && 
+             'balance' in request.resource.data && 
+             request.resource.data.balance < resource.data.balance;
+    }
+    
+    function isBalanceTopUp() {
+      return isAuthenticated() && 
+             resource != null && 
+             'balance' in resource.data && 
+             'balance' in request.resource.data && 
+             request.resource.data.balance > resource.data.balance;
+    }
+
+    function isValidPost(data) {
+      return data.keys().hasAll(['authorId', 'content', 'createdAt']) &&
+             data.authorId is string &&
+             data.content is string && data.content.size() > 0 && data.content.size() < 5000 &&
+             (!('image' in data) || (data.image is string && data.image.size() < 1000)) &&
+             (!('likes' in data) || data.likes is number) &&
+             (!('comments' in data) || data.comments is number) &&
+             (!('shares' in data) || data.shares is number) &&
+             data.createdAt is timestamp;
+    }
+
+    function isValidComment(data) {
+      return data.keys().hasAll(['authorId', 'authorName', 'content', 'createdAt']) &&
+             data.authorId is string &&
+             data.authorName is string && data.authorName.size() > 0 && data.authorName.size() < 100 &&
+             data.content is string && data.content.size() > 0 && data.content.size() < 1000 &&
+             (!('authorAvatar' in data) || (data.authorAvatar is string && data.authorAvatar.size() < 1000)) &&
+             data.createdAt is timestamp;
+    }
+
+    function isValidLike(data) {
+      return data.keys().hasAll(['createdAt']) &&
+             data.createdAt is timestamp;
+    }
+
+    function isValidVaultItem(data) {
+      return data.keys().hasAll(['userId', 'name', 'url', 'createdAt']) &&
+             data.userId is string &&
+             data.name is string && data.name.size() > 0 && data.name.size() < 255 &&
+             data.url is string && data.url.size() > 0 && data.url.size() < 1000 &&
+             (!('hash' in data) || (data.hash is string && data.hash.size() < 128)) &&
+             (!('c2paManifest' in data) || (data.c2paManifest is string && data.c2paManifest.size() < 10000)) &&
+             (!('licenseStatus' in data) || data.licenseStatus in ['private', 'licensed', 'public_domain']) &&
+             data.createdAt is timestamp;
+    }
+
+    function isValidVerificationRequest(data) {
+      return data.keys().hasAll(['userId', 'type', 'status', 'createdAt']) &&
+             data.userId is string &&
+             data.type in ['artist', 'label', 'agency'] &&
+             data.status in ['pending', 'approved', 'rejected'] &&
+             data.createdAt is timestamp;
+    }
+
+    function isValidReport(data) {
+      return data.keys().hasAll(['reporterId', 'targetId', 'targetType', 'reason', 'status', 'createdAt']) &&
+             data.reporterId is string &&
+             data.targetId is string &&
+             data.targetType in ['user', 'post', 'comment'] &&
+             data.reason is string && data.reason.size() > 0 && data.reason.size() < 1000 &&
+             data.status in ['pending', 'resolved', 'dismissed'] &&
+             data.createdAt is timestamp;
+    }
+
+    function isValidFollow(data) {
+      return data.keys().hasAll(['followerId', 'followingId', 'createdAt']) &&
+             data.followerId is string &&
+             data.followingId is string &&
+             data.createdAt is timestamp;
+    }
+
+    function isValidNotification(data) {
+      return data.keys().hasAll(['userId', 'user', 'type', 'createdAt']) &&
+             data.userId is string &&
+             data.user is string &&
+             data.type in ['like', 'comment', 'follow', 'collab'] &&
+             data.createdAt is timestamp;
+    }
+
+    function isValidGroup(data) {
+      return data.keys().hasAll(['name', 'members', 'image', 'createdAt']) &&
+             data.name is string &&
+             data.members is string &&
+             data.image is string &&
+             data.createdAt is timestamp;
+    }
+
+    function isValidInquiry(data) {
+      return data.keys().hasAll(['senderId', 'receiverId', 'message', 'status', 'createdAt']) &&
+             data.senderId is string &&
+             data.receiverId is string &&
+             data.message is string && data.message.size() > 0 && data.message.size() < 2000 &&
+             data.status in ['pending', 'accepted', 'rejected', 'completed'] &&
+             data.createdAt is timestamp;
+    }
+
+    function isValidBooking(data) {
+      return data.keys().hasAll(['clientId', 'creatorId', 'serviceType', 'details', 'price', 'status', 'createdAt']) &&
+             data.clientId is string &&
+             data.creatorId is string &&
+             data.serviceType is string &&
+             data.details is string && data.details.size() > 0 && data.details.size() < 2000 &&
+             data.price is number &&
+             data.status in ['pending', 'accepted', 'rejected', 'completed'] &&
+             data.createdAt is timestamp;
+    }
+
+    function isValidWorkflow(data) {
+      return data.keys().hasAll(['userId', 'name', 'trigger', 'action', 'status', 'createdAt']) &&
+             data.userId is string &&
+             data.name is string && data.name.size() > 0 && data.name.size() < 100 &&
+             data.trigger is string && data.trigger.size() > 0 && data.trigger.size() < 100 &&
+             data.action is string && data.action.size() > 0 && data.action.size() < 100 &&
+             data.status in ['Active', 'Inactive'] &&
+             data.createdAt is timestamp;
+    }
+
+    function isValidWebhook(data) {
+      return data.keys().hasAll(['userId', 'name', 'url', 'events', 'isActive', 'createdAt']) &&
+             data.userId is string &&
+             data.name is string && data.name.size() > 0 && data.name.size() < 100 &&
+             data.url is string && data.url.size() > 0 && data.url.size() < 500 &&
+             data.events is list && data.events.size() > 0 && data.events.size() < 20 &&
+             data.isActive is bool &&
+             (!('secret' in data) || data.secret is string) &&
+             data.createdAt is timestamp;
+    }
+
+    function isValidTransaction(data) {
+      return data.keys().hasAll(['userId', 'amount', 'type', 'description', 'status', 'createdAt']) &&
+             data.userId is string &&
+             data.amount is number &&
+             data.type in ['topup', 'payment', 'refund'] &&
+             data.description is string && data.description.size() > 0 && data.description.size() < 500 &&
+             data.status in ['completed', 'pending', 'failed'] &&
+             data.createdAt is timestamp;
+    }
+
+    function isValidAnomaly(data) {
+      return data.keys().hasAll(['type', 'severity', 'description', 'status', 'createdAt']) &&
+             data.type in ["brute_force", "unusual_traffic", "api_overuse", "deepfake_attempt", "unauthorized_access"] &&
+             data.severity in ["low", "medium", "high", "critical"] &&
+             data.description is string && data.description.size() > 0 && data.description.size() < 2000 &&
+             data.status in ["detected", "blocked", "monitoring", "resolved"] &&
+             (!('userId' in data) || data.userId is string) &&
+             (!('source' in data) || data.source is string) &&
+             (!('confidence' in data) || data.confidence is number) &&
+             data.createdAt is timestamp;
+    }
+
+    function isValidC2PALedger(data) {
+      return data.keys().hasAll(['hash', 'fileName', 'issuer', 'status', 'timestamp']) &&
+             data.hash is string && data.hash.size() == 64 &&
+             data.fileName is string && data.fileName.size() > 0 && data.fileName.size() < 255 &&
+             data.issuer is string && data.issuer.size() > 0 && data.issuer.size() < 100 &&
+             data.status in ['anchored', 'revoked', 'pending'] &&
+             data.timestamp is timestamp;
+    }
+
+    // ===============================================================
+    // Collection Rules
+    // ===============================================================
+
+    // Transactions
+    match /transactions/{transactionId} {
+      allow read: if isAuthenticated() && (resource.data.userId == request.auth.uid || isAdmin());
+      allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid && isValidTransaction(request.resource.data);
+      allow update: if isAdmin();
+      allow delete: if isAdmin();
+    }
+
+    // Workflows
+    match /workflows/{workflowId} {
+      allow read: if isAuthenticated() && (resource.data.userId == request.auth.uid || isAdmin());
+      allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid && isValidWorkflow(request.resource.data);
+      allow update: if isAuthenticated() && (resource.data.userId == request.auth.uid || isAdmin()) && isValidWorkflow(request.resource.data);
+      allow delete: if isAuthenticated() && (resource.data.userId == request.auth.uid || isAdmin());
+    }
+
+    // Webhooks
+    match /webhooks/{webhookId} {
+      allow read: if isAuthenticated() && (resource.data.userId == request.auth.uid || isAdmin());
+      allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid && isValidWebhook(request.resource.data);
+      allow update: if isAuthenticated() && (resource.data.userId == request.auth.uid || isAdmin()) && isValidWebhook(request.resource.data);
+      allow delete: if isAuthenticated() && (resource.data.userId == request.auth.uid || isAdmin());
+    }
+
+    // Bookings
+    match /bookings/{bookingId} {
+      allow read: if isAuthenticated() && (resource.data.clientId == request.auth.uid || resource.data.creatorId == request.auth.uid || isAdmin());
+      allow create: if isAuthenticated() && request.resource.data.clientId == request.auth.uid && isValidBooking(request.resource.data);
+      allow update: if isAuthenticated() && (resource.data.clientId == request.auth.uid || resource.data.creatorId == request.auth.uid || isAdmin()) && isValidBooking(request.resource.data);
+      allow delete: if isAdmin();
+    }
+
+    // Inquiries
+    match /inquiries/{inquiryId} {
+      allow read: if isAuthenticated() && (resource.data.senderId == request.auth.uid || resource.data.receiverId == request.auth.uid || isAdmin());
+      allow create: if isAuthenticated() && request.resource.data.senderId == request.auth.uid && isValidInquiry(request.resource.data);
+      allow update: if isAuthenticated() && (resource.data.senderId == request.auth.uid || resource.data.receiverId == request.auth.uid || isAdmin()) && isValidInquiry(request.resource.data);
+      allow delete: if isAdmin();
+    }
+
+    // User Profiles
+    match /users/{userId} {
+      // Allow reading own profile, admin access, or public creator profiles (must be authenticated)
+      allow read: if isOwner(userId) || isAdmin() || (isAuthenticated() && resource != null && resource.data.role == 'creator'); 
+      
+      // Only owner or admin can create/update their own profile
+      allow create: if isOwner(userId) && isValidUser(request.resource.data) && balanceUnchanged();
+      allow update: if (isOwner(userId) || isAdmin()) && isValidUser(request.resource.data) && 
+                      request.resource.data.createdAt == resource.data.createdAt &&
+                      (isAdmin() || (request.resource.data.role == resource.data.role && (balanceUnchanged() || isBalanceDeduction() || isBalanceTopUp())));
+      allow delete: if isAdmin();
+    }
+
+    // Posts
+    match /posts/{postId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && request.resource.data.authorId == request.auth.uid && isValidPost(request.resource.data);
+      allow update: if isAuthenticated() && (resource.data.authorId == request.auth.uid || isAdmin()) && 
+                      isValidPost(request.resource.data) &&
+                      request.resource.data.authorId == resource.data.authorId &&
+                      request.resource.data.createdAt == resource.data.createdAt;
+      allow delete: if isAuthenticated() && (resource.data.authorId == request.auth.uid || isAdmin());
+
+      match /comments/{commentId} {
+        allow read: if isAuthenticated();
+        allow create: if isAuthenticated() && request.resource.data.authorId == request.auth.uid && isValidComment(request.resource.data);
+        allow update: if isAuthenticated() && (resource.data.authorId == request.auth.uid || isAdmin()) && isValidComment(request.resource.data);
+        allow delete: if isAuthenticated() && (resource.data.authorId == request.auth.uid || isAdmin());
+      }
+
+      match /likes/{userId} {
+        allow read: if isAuthenticated();
+        allow create, delete: if isOwner(userId) && isValidLike(request.resource.data);
+      }
+    }
+
+    // Messages
+    match /messages/{messageId} {
+      allow read: if isAuthenticated() && (resource.data.senderId == request.auth.uid || resource.data.receiverId == request.auth.uid || isAdmin());
+      allow create: if isAuthenticated() && request.resource.data.senderId == request.auth.uid;
+      allow update: if isAuthenticated() && (resource.data.senderId == request.auth.uid || resource.data.receiverId == request.auth.uid || isAdmin());
+      allow delete: if isAdmin() || (isAuthenticated() && resource.data.senderId == request.auth.uid);
+    }
+
+    // Vault Items
+    match /vault/{itemId} {
+      allow read: if isAuthenticated() && (resource.data.userId == request.auth.uid || isAdmin());
+      allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid && isValidVaultItem(request.resource.data);
+      allow update: if isAuthenticated() && (resource.data.userId == request.auth.uid || isAdmin()) && 
+                      isValidVaultItem(request.resource.data) &&
+                      request.resource.data.userId == resource.data.userId &&
+                      request.resource.data.createdAt == resource.data.createdAt;
+      allow delete: if isAuthenticated() && (resource.data.userId == request.auth.uid || isAdmin());
+    }
+
+    // Notifications
+    match /notifications/{notificationId} {
+      allow read: if isAuthenticated() && (resource.data.userId == request.auth.uid || isAdmin());
+      allow create: if isAuthenticated() && isAdmin(); // Only system/admin can create notifications for now
+      allow update: if isAuthenticated() && (resource.data.userId == request.auth.uid || isAdmin());
+      allow delete: if isAuthenticated() && (resource.data.userId == request.auth.uid || isAdmin());
+    }
+
+    // Groups
+    match /groups/{groupId} {
+      allow read: if isAuthenticated();
+      allow create: if isAdmin();
+      allow update: if isAdmin();
+      allow delete: if isAdmin();
+    }
+
+    // Verification Requests
+    match /verificationRequests/{requestId} {
+      allow read: if isAuthenticated() && (resource.data.userId == request.auth.uid || isAdmin());
+      allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid && isValidVerificationRequest(request.resource.data);
+      allow update: if isAdmin() && isValidVerificationRequest(request.resource.data);
+      allow delete: if isAdmin();
+    }
+
+    // Reports
+    match /reports/{reportId} {
+      allow read: if isAdmin();
+      allow create: if isAuthenticated() && request.resource.data.reporterId == request.auth.uid && isValidReport(request.resource.data);
+      allow update: if isAdmin() && isValidReport(request.resource.data);
+      allow delete: if isAdmin();
+    }
+
+    // Follows
+    match /follows/{followId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && request.resource.data.followerId == request.auth.uid && isValidFollow(request.resource.data);
+      allow delete: if isAuthenticated() && resource.data.followerId == request.auth.uid;
+    }
+
+    // Anomalies
+    match /anomalies/{anomalyId} {
+      allow read: if isAuthenticated() && (resource.data.userId == request.auth.uid || isAdmin());
+      allow create: if isAdmin();
+      allow update: if isAdmin();
+      allow delete: if isAdmin();
+    }
+
+    // C2PA Ledger
+    match /c2pa_ledger/{hash} {
+      allow read: if isAuthenticated();
+      allow create: if isAdmin();
+      allow update: if isAdmin();
+      allow delete: if isAdmin();
+    }
+  }
+}

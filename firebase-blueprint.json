@@ -1,0 +1,339 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "User profile and platform metrics",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "description": "Unique user ID" },
+        "name": { "type": "string", "description": "Display name" },
+        "handle": { "type": "string", "description": "Social handle" },
+        "email": { "type": "string", "format": "email", "description": "User email" },
+        "avatar": { "type": "string", "description": "Profile picture URL" },
+        "verified": { "type": "boolean", "description": "Verification status" },
+        "verificationLevel": { "type": "string", "enum": ["none", "basic", "artist", "label", "agency", "admin"], "description": "Trust level" },
+        "trustScore": { "type": "integer", "description": "Platform trust score (0-100)" },
+        "followersCount": { "type": "integer", "description": "Numeric follower count" },
+        "followingCount": { "type": "integer", "description": "Numeric following count" },
+        "socials": { "type": "array", "items": { "type": "string" }, "description": "Connected platforms" },
+        "role": { "type": "string", "enum": ["creator", "brand", "admin"], "description": "User role" },
+        "verificationStatus": { "type": "string", "enum": ["none", "verified", "checked", "beta", "manually_confirmed"], "description": "Verification status" },
+        "language": { "type": "string", "description": "Primary language" },
+        "country": { "type": "string", "description": "Country of residence" },
+        "platforms": { "type": "array", "items": { "type": "string" }, "description": "Active platforms" },
+        "plan": { "type": "string", "enum": ["gratis", "bronze", "silver", "gold", "platinum", "diamond"], "description": "Subscription plan" },
+        "balance": { "type": "number", "description": "User account balance in EUR" },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Account creation timestamp" }
+      },
+      "required": ["uid", "name", "email", "role"]
+    },
+    "Post": {
+      "title": "Post",
+      "description": "Feed content post",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Post ID" },
+        "authorId": { "type": "string", "description": "Author user ID" },
+        "content": { "type": "string", "description": "Post text content" },
+        "image": { "type": "string", "description": "Optional image URL" },
+        "likes": { "type": "integer", "description": "Like count" },
+        "comments": { "type": "integer", "description": "Comment count" },
+        "shares": { "type": "integer", "description": "Share count" },
+        "time": { "type": "string", "description": "Relative time string" },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Creation timestamp" }
+      },
+      "required": ["authorId", "content", "createdAt"]
+    },
+    "Message": {
+      "title": "Message",
+      "description": "Direct message between users",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Message ID" },
+        "senderId": { "type": "string", "description": "Sender user ID" },
+        "receiverId": { "type": "string", "description": "Receiver user ID" },
+        "text": { "type": "string", "description": "Message content" },
+        "read": { "type": "boolean", "description": "Read status" },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Message timestamp" }
+      },
+      "required": ["senderId", "receiverId", "text", "createdAt"]
+    },
+    "VaultItem": {
+      "title": "Vault Item",
+      "description": "A file stored in the Creator Vault with rights metadata.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Item ID" },
+        "userId": { "type": "string", "description": "Owner user ID" },
+        "name": { "type": "string", "description": "File name" },
+        "url": { "type": "string", "description": "Storage URL" },
+        "size": { "type": "integer", "description": "File size in bytes" },
+        "type": { "type": "string", "description": "MIME type" },
+        "hash": { "type": "string", "description": "SHA-256 hash of the file" },
+        "c2paManifest": { "type": "string", "description": "C2PA manifest data (JSON string)" },
+        "licenseStatus": { "type": "string", "enum": ["private", "licensed", "public_domain"], "description": "Rights status" },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Upload timestamp" }
+      },
+      "required": ["userId", "name", "url", "createdAt"]
+    },
+    "VerificationRequest": {
+      "title": "Verification Request",
+      "description": "Request for higher trust level",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "description": "User ID" },
+        "type": { "type": "string", "enum": ["artist", "label", "agency"], "description": "Requested level" },
+        "documents": { "type": "array", "items": { "type": "string" }, "description": "Proof documents URLs" },
+        "status": { "type": "string", "enum": ["pending", "approved", "rejected"], "description": "Request status" },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Request timestamp" }
+      },
+      "required": ["userId", "type", "status", "createdAt"]
+    },
+    "Report": {
+      "title": "Report",
+      "description": "User or content report",
+      "type": "object",
+      "properties": {
+        "reporterId": { "type": "string", "description": "User who reported" },
+        "targetId": { "type": "string", "description": "ID of reported user or post" },
+        "targetType": { "type": "string", "enum": ["user", "post", "comment"], "description": "Type of target" },
+        "reason": { "type": "string", "description": "Reason for report" },
+        "status": { "type": "string", "enum": ["pending", "resolved", "dismissed"], "description": "Moderation status" },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Report timestamp" }
+      },
+      "required": ["reporterId", "targetId", "targetType", "reason", "status", "createdAt"]
+    },
+    "Follow": {
+      "title": "Follow",
+      "description": "Relationship between users",
+      "type": "object",
+      "properties": {
+        "followerId": { "type": "string", "description": "User who follows" },
+        "followingId": { "type": "string", "description": "User being followed" },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Follow timestamp" }
+      },
+      "required": ["followerId", "followingId", "createdAt"]
+    },
+    "Notification": {
+      "title": "Notification",
+      "description": "A user notification",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "description": "Target user ID" },
+        "user": { "type": "string", "description": "Triggering user name" },
+        "type": { "type": "string", "enum": ["like", "comment", "follow", "collab"], "description": "Notification type" },
+        "time": { "type": "string", "description": "Relative time string" },
+        "avatar": { "type": "string", "description": "Triggering user avatar URL" },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Notification timestamp" }
+      },
+      "required": ["userId", "user", "type", "createdAt"]
+    },
+    "Group": {
+      "title": "Group",
+      "description": "A community group",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string", "description": "Group name" },
+        "members": { "type": "string", "description": "Member count display string" },
+        "image": { "type": "string", "description": "Group cover image URL" },
+        "description": { "type": "string", "description": "Group description" },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Group creation timestamp" }
+      },
+      "required": ["name", "members", "image", "createdAt"]
+    },
+    "Inquiry": {
+      "title": "Inquiry",
+      "description": "A message sent from a brand to a creator to discuss a collaboration.",
+      "type": "object",
+      "properties": {
+        "senderId": { "type": "string", "description": "The UID of the user sending the inquiry." },
+        "receiverId": { "type": "string", "description": "The UID of the creator receiving the inquiry." },
+        "message": { "type": "string", "description": "The content of the inquiry message." },
+        "status": { "type": "string", "enum": ["pending", "accepted", "rejected", "completed"], "description": "The status of the inquiry." },
+        "createdAt": { "type": "string", "format": "date-time", "description": "When the inquiry was created." }
+      },
+      "required": ["senderId", "receiverId", "message", "status", "createdAt"]
+    },
+    "Booking": {
+      "title": "Booking",
+      "description": "A booking request for a creator's services.",
+      "type": "object",
+      "properties": {
+        "clientId": { "type": "string", "description": "The UID of the user booking the service." },
+        "creatorId": { "type": "string", "description": "The UID of the creator being booked." },
+        "serviceType": { "type": "string", "description": "The type of service booked (e.g., Dedicated Video, Shoutout)." },
+        "details": { "type": "string", "description": "Campaign details provided by the client." },
+        "price": { "type": "number", "description": "The agreed price for the service." },
+        "status": { "type": "string", "enum": ["pending", "accepted", "rejected", "completed"], "description": "The status of the booking." },
+        "createdAt": { "type": "string", "format": "date-time", "description": "When the booking was created." }
+      },
+      "required": ["clientId", "creatorId", "serviceType", "details", "price", "status", "createdAt"]
+    },
+    "Workflow": {
+      "title": "Workflow",
+      "description": "An automation workflow.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "description": "The UID of the user who owns the workflow." },
+        "name": { "type": "string", "description": "The name of the workflow." },
+        "trigger": { "type": "string", "description": "The trigger event." },
+        "action": { "type": "string", "description": "The action to perform." },
+        "status": { "type": "string", "enum": ["Active", "Inactive"], "description": "The status of the workflow." },
+        "createdAt": { "type": "string", "format": "date-time", "description": "When the workflow was created." }
+      },
+      "required": ["userId", "name", "trigger", "action", "status", "createdAt"]
+    },
+    "Webhook": {
+      "title": "Webhook",
+      "description": "A webhook configuration.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "description": "The UID of the user who owns the webhook." },
+        "name": { "type": "string", "description": "The name of the webhook." },
+        "url": { "type": "string", "description": "The webhook URL." },
+        "events": { "type": "array", "items": { "type": "string" }, "description": "The events that trigger the webhook." },
+        "secret": { "type": "string", "description": "The webhook secret." },
+        "isActive": { "type": "boolean", "description": "Whether the webhook is active." },
+        "createdAt": { "type": "string", "format": "date-time", "description": "When the webhook was created." }
+      },
+      "required": ["userId", "name", "url", "events", "isActive", "createdAt"]
+    },
+    "Transaction": {
+      "title": "Transaction",
+      "description": "Financial transaction record",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "description": "User ID" },
+        "amount": { "type": "number", "description": "Transaction amount" },
+        "type": { "type": "string", "enum": ["topup", "payment", "refund"], "description": "Type of transaction" },
+        "description": { "type": "string", "description": "Transaction description" },
+        "status": { "type": "string", "enum": ["completed", "pending", "failed"], "description": "Transaction status" },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Transaction timestamp" }
+      },
+      "required": ["userId", "amount", "type", "description", "status", "createdAt"]
+    },
+    "Anomaly": {
+      "title": "Anomaly",
+      "description": "A security anomaly detected by AI",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Anomaly ID" },
+        "userId": { "type": "string", "description": "Target user ID (optional)" },
+        "type": { "type": "string", "enum": ["brute_force", "unusual_traffic", "api_overuse", "deepfake_attempt", "unauthorized_access"], "description": "Type of anomaly" },
+        "severity": { "type": "string", "enum": ["low", "medium", "high", "critical"], "description": "Severity level" },
+        "description": { "type": "string", "description": "Detailed description" },
+        "source": { "type": "string", "description": "Source IP or user ID" },
+        "status": { "type": "string", "enum": ["detected", "blocked", "monitoring", "resolved"], "description": "Current status" },
+        "confidence": { "type": "number", "description": "AI confidence score (0-1)" },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Detection timestamp" }
+      },
+      "required": ["type", "severity", "description", "status", "createdAt"]
+    },
+    "C2PALedger": {
+      "title": "C2PA Ledger",
+      "description": "Blockchain-anchored content manifest record",
+      "type": "object",
+      "properties": {
+        "hash": { "type": "string", "description": "SHA-256 content hash" },
+        "fileName": { "type": "string", "description": "Original file name" },
+        "fileType": { "type": "string", "description": "MIME type" },
+        "issuer": { "type": "string", "description": "Trust node issuer" },
+        "status": { "type": "string", "enum": ["anchored", "revoked", "pending"], "description": "Ledger status" },
+        "timestamp": { "type": "string", "format": "date-time", "description": "Anchor timestamp" }
+      },
+      "required": ["hash", "fileName", "issuer", "status", "timestamp"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "User",
+      "description": "User profile documents"
+    },
+    "/posts/{postId}": {
+      "schema": "Post",
+      "description": "Global feed posts"
+    },
+    "/posts/{postId}/comments/{commentId}": {
+      "schema": {
+        "title": "Comment",
+        "type": "object",
+        "properties": {
+          "authorId": { "type": "string" },
+          "authorName": { "type": "string" },
+          "authorAvatar": { "type": "string" },
+          "content": { "type": "string" },
+          "createdAt": { "type": "string", "format": "date-time" }
+        },
+        "required": ["authorId", "authorName", "content", "createdAt"]
+      },
+      "description": "Comments on a post"
+    },
+    "/posts/{postId}/likes/{userId}": {
+      "schema": {
+        "title": "Like",
+        "type": "object",
+        "properties": {
+          "createdAt": { "type": "string", "format": "date-time" }
+        },
+        "required": ["createdAt"]
+      },
+      "description": "Likes on a post"
+    },
+    "/messages/{messageId}": {
+      "schema": "Message",
+      "description": "Direct messages"
+    },
+    "/vault/{itemId}": {
+      "schema": "VaultItem",
+      "description": "User vault items"
+    },
+    "/notifications/{notificationId}": {
+      "schema": "Notification",
+      "description": "User notifications"
+    },
+    "/groups/{groupId}": {
+      "schema": "Group",
+      "description": "Community groups"
+    },
+    "/verificationRequests/{requestId}": {
+      "schema": "VerificationRequest",
+      "description": "Verification requests"
+    },
+    "/reports/{reportId}": {
+      "schema": "Report",
+      "description": "Moderation reports"
+    },
+    "/follows/{followId}": {
+      "schema": "Follow",
+      "description": "User follow relationships"
+    },
+    "/inquiries/{inquiryId}": {
+      "schema": "Inquiry",
+      "description": "Inquiries sent to creators"
+    },
+    "/bookings/{bookingId}": {
+      "schema": "Booking",
+      "description": "Bookings for creator services"
+    },
+    "/workflows/{workflowId}": {
+      "schema": "Workflow",
+      "description": "Automation workflows"
+    },
+    "/webhooks/{webhookId}": {
+      "schema": "Webhook",
+      "description": "Webhook configurations"
+    },
+    "/transactions/{transactionId}": {
+      "schema": "Transaction",
+      "description": "Financial transactions"
+    },
+    "/anomalies/{anomalyId}": {
+      "schema": "Anomaly",
+      "description": "Security anomalies detected by AI"
+    },
+    "/c2pa_ledger/{hash}": {
+      "schema": "C2PALedger",
+      "description": "Blockchain-anchored content manifests"
+    }
+  }
+}
